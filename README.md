@@ -10,6 +10,96 @@ apps/worker      Background worker for Redis queues, WhatsApp, Playwright/Wishli
 packages/shared  Shared types and URL helpers
 ```
 
+## System Design
+
+```mermaid
+flowchart LR
+  user["Operator"] --> dashboardUi["Dashboard UI<br/>Next.js app"]
+
+  dashboardUi --> apiDeals["/api/worker/deals"]
+  dashboardUi --> apiSettings["/api/worker/settings"]
+  dashboardUi --> apiLogs["/api/worker/logs"]
+
+  apiDeals --> prisma["Prisma Client"]
+  apiSettings --> prisma
+  apiLogs --> prisma
+  prisma --> sqlite[("SQLite DB")]
+
+  worker["Worker<br/>Node.js + BullMQ"] --> apiDeals
+  worker --> apiSettings
+  worker --> apiLogs
+  worker --> redis[("Redis Queues")]
+
+  worker --> playwright["Playwright<br/>Wishlink browser session"]
+  worker --> whatsapp["whatsapp-web.js<br/>WhatsApp browser session"]
+  worker --> smtp["Nodemailer SMTP alerts"]
+
+  playwright --> wishlink["Wishlink"]
+  whatsapp --> community["WhatsApp Community"]
+  smtp --> admin["Admin Email"]
+```
+
+## Deal Workflow
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor Operator
+  participant UI as Dashboard UI
+  participant API as Dashboard API
+  participant DB as SQLite via Prisma
+  participant Worker
+  participant Redis
+  participant Wishlink
+  participant WA as WhatsApp Web
+
+  Operator->>UI: Add product URL, name, MRP, offer price
+  UI->>API: POST /api/worker/deals
+  API->>API: Normalize product URL
+  API->>DB: Check duplicate window
+
+  alt Duplicate found
+    API->>DB: Save as DUPLICATE_PENDING
+    API-->>UI: Show duplicate review state
+    Operator->>UI: Approve or discard
+    UI->>API: PATCH /api/worker/deals
+    API->>DB: Set PENDING or DISCARDED
+  else New deal
+    API->>DB: Save as PENDING
+    API-->>UI: Deal queued
+  end
+
+  Worker->>API: Poll PENDING deals
+  Worker->>Redis: Add link-generation job
+  Worker->>API: PATCH status GENERATING
+  Worker->>Wishlink: Generate affiliate shortlink with Playwright
+  Worker->>API: PATCH status SCHEDULED with shortlink and time
+
+  Worker->>API: Poll due SCHEDULED deals
+  Worker->>Redis: Add whatsapp-posting job
+  Worker->>WA: Send formatted deal message
+  Worker->>API: PATCH status POSTED
+  Worker->>API: POST diagnostic logs
+```
+
+## Docker Runtime
+
+```mermaid
+flowchart TB
+  compose["docker compose up -d"] --> redisSvc["redis<br/>redis:alpine"]
+  compose --> dashboardSvc["dashboard<br/>Next.js + Prisma"]
+  compose --> workerSvc["worker<br/>Node.js + Playwright"]
+
+  dashboardSvc --> dashboardVol[("dashboard_data<br/>SQLite dev.db")]
+  workerSvc --> workerVol[("worker_sessions<br/>WhatsApp + Wishlink profiles")]
+  redisSvc --> redisVol[("redis_data")]
+
+  workerSvc --> redisSvc
+  workerSvc --> dashboardSvc
+  dashboardSvc --> port3000["localhost:3000"]
+  redisSvc --> port6379["localhost:6379"]
+```
+
 ## Install
 
 ```bash
@@ -72,6 +162,12 @@ Start worker in another terminal:
 
 ```bash
 npm run dev:worker
+```
+
+If the worker cannot find Chrome/Chromium locally, install Playwright's Chromium:
+
+```bash
+npm run browser:install
 ```
 
 Open:
@@ -178,6 +274,12 @@ Build worker:
 npm run build:worker
 ```
 
+Install local Chromium for WhatsApp/Playwright automation:
+
+```bash
+npm run browser:install
+```
+
 Start production dashboard locally:
 
 ```bash
@@ -248,6 +350,76 @@ docker compose logs -f worker
 
 The dashboard also exposes the latest QR through the settings API and UI.
 
+## Beginner Usage Guide
+
+Use this flow after the dashboard and worker are running.
+
+```mermaid
+flowchart TD
+  start([Start here]) --> openDashboard["Open dashboard<br/>http://localhost:3000"]
+  openDashboard --> checkWhatsapp{"WhatsApp Worker<br/>status CONNECTED?"}
+
+  checkWhatsapp -- "No, status DISCONNECTED" --> scanQr["Go to System Selectors & config<br/>Scan WhatsApp QR code"]
+  scanQr --> phone["On phone:<br/>WhatsApp -> Linked devices -> Link a device"]
+  phone --> waitConnected["Wait until dashboard shows<br/>Status: CONNECTED"]
+  waitConnected --> checkWhatsapp
+
+  checkWhatsapp -- "Yes, connected" --> config["Open System Selectors & config"]
+  config --> settings["Check these settings:<br/>1. Wishlink selectors<br/>2. SMTP email settings<br/>3. Duplicate prevention days"]
+  settings --> save["Click Save Configuration"]
+
+  save --> addDeal["Open Deals Queue<br/>Fill product URL, product name, MRP, offer price"]
+  addDeal --> submit["Click Add Deal to Queue"]
+  submit --> duplicate{"Duplicate detected?"}
+
+  duplicate -- "Yes" --> duplicateTab["Open Duplicate Queue"]
+  duplicateTab --> decision{"Do you still want to post it?"}
+  decision -- "Yes" --> approve["Click Post Deal Anyway"]
+  decision -- "No" --> discard["Click Discard Deal"]
+  approve --> pending["Deal becomes PENDING"]
+  discard --> stopped([Finished: deal discarded])
+
+  duplicate -- "No" --> pending
+  pending --> workerPickup["Worker picks the deal<br/>status becomes GENERATING"]
+  workerPickup --> wishlink{"Wishlink generation works?"}
+
+  wishlink -- "No" --> failed["Deal becomes FAILED"]
+  failed --> logs["Open Diagnostic Logs<br/>Read error details"]
+  logs --> fix["Fix selector/login/config issue<br/>then add or retry the deal"]
+  fix --> addDeal
+
+  wishlink -- "Yes" --> scheduled["Deal becomes SCHEDULED<br/>Wishlink URL saved"]
+  scheduled --> dueTime["When scheduled time arrives"]
+  dueTime --> post["Worker posts message<br/>to WhatsApp community"]
+  post --> posted["Deal becomes POSTED"]
+  posted --> done([Done])
+```
+
+### What Each Tab Is For
+
+```mermaid
+flowchart LR
+  deals["Deals Queue"] --> dealsUse["Add new product deals<br/>Watch status changes"]
+  dupes["Duplicate Queue"] --> dupesUse["Approve duplicate deals<br/>or discard them"]
+  settings["System Selectors & config"] --> settingsUse["Scan WhatsApp QR<br/>Update Wishlink selectors<br/>Set email alerts"]
+  logs["Diagnostic Logs"] --> logsUse["Debug failures<br/>Check worker activity"]
+```
+
+### Status Meaning
+
+```mermaid
+stateDiagram-v2
+  [*] --> PENDING: New deal added
+  PENDING --> GENERATING: Worker starts Wishlink job
+  GENERATING --> SCHEDULED: Affiliate link generated
+  GENERATING --> FAILED: Wishlink/browser/config error
+  SCHEDULED --> POSTED: WhatsApp message sent
+  PENDING --> DUPLICATE_PENDING: Duplicate URL found
+  DUPLICATE_PENDING --> PENDING: You approve duplicate
+  DUPLICATE_PENDING --> DISCARDED: You discard duplicate
+  FAILED --> PENDING: Manually retry after fixing issue
+```
+
 ## Common Fixes
 
 If `@prisma/client did not initialize yet` appears:
@@ -260,6 +432,18 @@ If the local database schema is missing tables:
 
 ```bash
 npm run db:push
+```
+
+If the worker says `Browser was not found at the configured executablePath`:
+
+```bash
+npm run browser:install
+```
+
+Or use an installed Chrome manually:
+
+```bash
+CHROME_EXECUTABLE_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" npm run dev:worker
 ```
 
 If Docker services are using stale images:

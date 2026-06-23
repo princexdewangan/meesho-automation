@@ -1,12 +1,37 @@
 import pkg from 'whatsapp-web.js';
 const { Client, LocalAuth } = pkg;
 import qrcode from 'qrcode-terminal';
+import { existsSync } from 'fs';
 import { chromium } from 'playwright';
 import { config } from '../config.js';
 import { logEvent } from './api.js';
 
 let client: any = null;
 let whatsappStatus: 'CONNECTED' | 'DISCONNECTED' | 'INITIALIZING' = 'DISCONNECTED';
+
+function getBrowserExecutablePath() {
+  const candidates = [
+    config.browserExecutablePath,
+    chromium.executablePath(),
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+  ].filter(Boolean) as string[];
+
+  const executablePath = candidates.find((candidate) => existsSync(candidate));
+  if (executablePath) return executablePath;
+
+  throw new Error(
+    [
+      'No Chromium/Chrome executable was found for WhatsApp Web.',
+      'Install Playwright Chromium with `npm run browser:install --workspace=apps/worker`,',
+      'or set CHROME_EXECUTABLE_PATH to your Chrome executable path.',
+    ].join(' ')
+  );
+}
 
 // Exposed API to update status in the Dashboard DB
 async function updateWhatsappStatus(status: typeof whatsappStatus, qrCode?: string) {
@@ -35,6 +60,8 @@ export async function initWhatsApp() {
 
   console.log('Initializing WhatsApp Web client...');
   await updateWhatsappStatus('INITIALIZING', '');
+  const executablePath = getBrowserExecutablePath();
+  console.log(`Using browser executable: ${executablePath}`);
 
   client = new Client({
     authStrategy: new LocalAuth({
@@ -42,7 +69,7 @@ export async function initWhatsApp() {
     }),
     puppeteer: {
       headless: true,
-      executablePath: config.browserExecutablePath || chromium.executablePath(),
+      executablePath,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     },
   });

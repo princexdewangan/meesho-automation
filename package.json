@@ -18,6 +18,7 @@
     "build:worker": "npm run build --workspace=apps/worker",
     "start:dashboard": "npm start --workspace=apps/dashboard",
     "start:worker": "npm start --workspace=apps/worker",
+    "browser:install": "npm run browser:install --workspace=apps/worker",
     "lint:dashboard": "npm run lint --workspace=apps/dashboard",
     "db:generate": "npm run db:generate --workspace=apps/dashboard",
     "db:push": "npm run db:push --workspace=apps/dashboard",
