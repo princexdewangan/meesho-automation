@@ -108,6 +108,25 @@ npm install
 
 ## Environment
 
+This repo includes local `.env` files and commit-safe `.env.example` templates:
+
+```text
+.env                         Docker Compose values
+.env.example                 Docker Compose template
+apps/dashboard/.env          Dashboard local database config
+apps/dashboard/.env.example  Dashboard template
+apps/worker/.env             Worker local Redis/API/browser config
+apps/worker/.env.example     Worker template
+```
+
+Create or reset local env files from examples:
+
+```bash
+cp .env.example .env
+cp apps/dashboard/.env.example apps/dashboard/.env
+cp apps/worker/.env.example apps/worker/.env
+```
+
 Dashboard local env file:
 
 ```bash

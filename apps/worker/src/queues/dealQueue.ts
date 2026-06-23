@@ -1,5 +1,4 @@
-import { Queue, Worker, QueueEvents } from 'bullmq';
-import IORedis from 'ioredis';
+import { Queue, Worker } from 'bullmq';
 import { config } from '../config.js';
 import { fetchDeals, updateDeal, logEvent, Deal } from '../services/api.js';
 import { generateWishlink } from '../services/playwright.js';
