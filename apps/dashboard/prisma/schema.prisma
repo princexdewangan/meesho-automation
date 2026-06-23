@@ -1,0 +1,43 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Deal {
+  id            String    @id @default(uuid())
+  externalUrl   String
+  normalizedUrl String
+  productName   String
+  mrp           Float
+  offerPrice    Float
+  wishlinkUrl   String?
+  status        String    // PENDING, GENERATING, GENERATED, SCHEDULED, POSTED, FAILED, DUPLICATE_PENDING, DISCARDED
+  scheduledTime DateTime?
+  platform      String    // MEESHO, AMAZON, OTHER
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([normalizedUrl])
+  @@index([status])
+}
+
+model Setting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String   // Store JSON string configuration
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Log {
+  id        String   @id @default(uuid())
+  timestamp DateTime @default(now())
+  level     String   // INFO, WARN, ERROR
+  message   String
+  details   String?
+  createdAt DateTime @default(now())
+}

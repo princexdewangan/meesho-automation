@@ -1,0 +1,24 @@
+{
+  "name": "meesho-automation-root",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/dashboard",
+    "apps/worker",
+    "packages/shared"
+  ],
+  "scripts": {
+    "dev:dashboard": "npm run dev --workspace=apps/dashboard",
+    "dev:worker": "npm run dev --workspace=apps/worker",
+    "build:dashboard": "npm run build --workspace=apps/dashboard",
+    "build:worker": "npm run build --workspace=apps/worker",
+    "start:dashboard": "npm start --workspace=apps/dashboard",
+    "start:worker": "npm start --workspace=apps/worker",
+    "db:push": "npm run db:push --workspace=apps/dashboard",
+    "db:studio": "npm run db:studio --workspace=apps/dashboard"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "prettier": "^3.2.5"
+  }
+}

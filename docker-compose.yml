@@ -1,0 +1,63 @@
+name: meesho-automation
+
+services:
+  redis:
+    image: redis:8.6.2-alpine
+    container_name: meesho_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: apps/dashboard/Dockerfile
+    container_name: meesho_dashboard
+    environment:
+      DATABASE_URL: file:/data/dev.db
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "3000:3000"
+    volumes:
+      - dashboard_data:/data
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/worker/settings').then((res) => process.exit(res.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    container_name: meesho_worker
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      DASHBOARD_URL: http://dashboard:3000
+      WHATSAPP_SESSION_PATH: /data/whatsapp
+      WISHLINK_USER_DATA_DIR: /data/wishlink
+      WHATSAPP_COMMUNITY_NAME: ${WHATSAPP_COMMUNITY_NAME:-My Deals Community}
+    volumes:
+      - worker_sessions:/data
+    depends_on:
+      redis:
+        condition: service_started
+      dashboard:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+    driver: local
+  dashboard_data:
+    driver: local
+  worker_sessions:
+    driver: local
