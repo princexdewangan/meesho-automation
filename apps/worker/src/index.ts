@@ -17,7 +17,6 @@ async function bootstrap() {
 
     await logEvent('INFO', 'Affiliate Automation Worker successfully started.');
     console.log('Worker is listening for jobs and DB changes...');
-
   } catch (error: any) {
     console.error('Failed to bootstrap worker:', error);
     await logEvent('ERROR', 'Failed to bootstrap background worker', error.stack);

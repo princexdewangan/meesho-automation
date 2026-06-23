@@ -9,7 +9,7 @@ declare module 'whatsapp-web.js' {
     initialize(): Promise<void>;
     getChats(): Promise<any[]>;
   }
-  
+
   export class LocalAuth {
     constructor(options?: { dataPath?: string; clientId?: string });
   }

@@ -10,7 +10,8 @@ const outfit = Outfit({
 
 export const metadata: Metadata = {
   title: 'Affiliate Automation Command Center',
-  description: 'Enterprise dashboard for Meesho/Amazon affiliate conversion and WhatsApp scheduling.',
+  description:
+    'Enterprise dashboard for Meesho/Amazon affiliate conversion and WhatsApp scheduling.',
 };
 
 export default function RootLayout({
@@ -20,9 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={outfit.className}>
-      <body>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

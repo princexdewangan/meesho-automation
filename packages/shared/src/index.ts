@@ -31,10 +31,10 @@ export interface DealInput {
 export function normalizeUrl(urlStr: string): string {
   try {
     const url = new URL(urlStr);
-    
+
     // Normalize hostnames
     const host = url.hostname.toLowerCase();
-    
+
     if (host.includes('amazon.')) {
       // Keep only product ID path (/dp/B0xxxxxx or /gp/product/B0xxxxxx)
       const dpMatch = url.pathname.match(/\/dp\/([A-Z0-9]{10})/i);
@@ -49,7 +49,7 @@ export function normalizeUrl(urlStr: string): string {
       url.search = '';
       return url.toString().toLowerCase().trim();
     }
-    
+
     // Fallback for general URLs
     url.search = '';
     return url.toString().toLowerCase().trim();

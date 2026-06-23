@@ -33,7 +33,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json() as Partial<{
+    const body = (await req.json()) as Partial<{
       externalUrl: string;
       productName: string;
       mrp: number | string;
@@ -44,7 +44,10 @@ export async function POST(req: Request) {
 
     if (!externalUrl || !productName || mrp === undefined || offerPrice === undefined) {
       return NextResponse.json(
-        { success: false, error: 'Missing required deal parameters (externalUrl, productName, mrp, offerPrice)' },
+        {
+          success: false,
+          error: 'Missing required deal parameters (externalUrl, productName, mrp, offerPrice)',
+        },
         { status: 400 }
       );
     }
@@ -119,7 +122,7 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
-    const body = await req.json() as Partial<{
+    const body = (await req.json()) as Partial<{
       id: string;
       status: string;
       wishlinkUrl: string | null;
@@ -134,7 +137,8 @@ export async function PATCH(req: Request) {
     const updateData: Prisma.DealUpdateInput = {};
     if (status) updateData.status = status;
     if (wishlinkUrl !== undefined) updateData.wishlinkUrl = wishlinkUrl;
-    if (scheduledTime !== undefined) updateData.scheduledTime = scheduledTime ? new Date(scheduledTime) : null;
+    if (scheduledTime !== undefined)
+      updateData.scheduledTime = scheduledTime ? new Date(scheduledTime) : null;
 
     const deal = await prisma.deal.update({
       where: { id },

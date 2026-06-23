@@ -17,7 +17,7 @@ async function updateWhatsappStatus(status: typeof whatsappStatus, qrCode?: stri
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key: 'whatsappStatus', value: status }),
     });
-    
+
     if (qrCode !== undefined) {
       await fetch(`${config.dashboardUrl}/api/worker/settings`, {
         method: 'POST',
@@ -38,19 +38,19 @@ export async function initWhatsApp() {
 
   client = new Client({
     authStrategy: new LocalAuth({
-      dataPath: config.whatsappSessionPath
+      dataPath: config.whatsappSessionPath,
     }),
     puppeteer: {
       headless: true,
       executablePath: config.browserExecutablePath || chromium.executablePath(),
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    }
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    },
   });
 
   client.on('qr', async (qr: string) => {
     console.log('WhatsApp QR Code generated. Scan to authenticate:');
     qrcode.generate(qr, { small: true });
-    
+
     // Save QR to DB so Next.js dashboard can read and draw it
     await updateWhatsappStatus('DISCONNECTED', qr);
   });
@@ -95,7 +95,9 @@ export async function sendWhatsAppMessage(targetName: string, message: string): 
     const chat = chats.find((c: any) => c.name.toLowerCase() === targetName.toLowerCase());
 
     if (!chat) {
-      throw new Error(`WhatsApp Chat/Group/Community named "${targetName}" could not be found. Make sure the account has this chat open.`);
+      throw new Error(
+        `WhatsApp Chat/Group/Community named "${targetName}" could not be found. Make sure the account has this chat open.`
+      );
     }
 
     console.log(`Sending message to "${targetName}"...`);

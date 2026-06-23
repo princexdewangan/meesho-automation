@@ -2,12 +2,12 @@ import nodemailer from 'nodemailer';
 import { prisma } from './prisma';
 
 const DEFAULT_SETTINGS = {
-  adminEmail: "admin@example.com",
-  smtpHost: "smtp.mailtrap.io",
-  smtpPort: "2525",
-  smtpUser: "your-smtp-user",
-  smtpPass: "your-smtp-pass",
-  smtpFrom: "alerts@affiliateautomation.com"
+  adminEmail: 'admin@example.com',
+  smtpHost: 'smtp.mailtrap.io',
+  smtpPort: '2525',
+  smtpUser: 'your-smtp-user',
+  smtpPass: 'your-smtp-pass',
+  smtpFrom: 'alerts@affiliateautomation.com',
 };
 
 async function getEmailConfig() {
@@ -24,10 +24,15 @@ async function getEmailConfig() {
 export async function sendEmailAlert(subject: string, htmlContent: string) {
   try {
     const config = await getEmailConfig();
-    
+
     // Skip if placeholders are not updated
-    if (config.smtpUser.includes('your-') || config.smtpHost === 'smtp.mailtrap.io' && config.smtpUser === 'your-smtp-user') {
-      console.warn("SMTP settings are default/placeholder. Skipping sending alert email. Logging message to console:");
+    if (
+      config.smtpUser.includes('your-') ||
+      (config.smtpHost === 'smtp.mailtrap.io' && config.smtpUser === 'your-smtp-user')
+    ) {
+      console.warn(
+        'SMTP settings are default/placeholder. Skipping sending alert email. Logging message to console:'
+      );
       console.log(`[ALERT EMAIL] Subject: ${subject}\nBody: ${htmlContent}`);
       return;
     }
@@ -48,17 +53,17 @@ export async function sendEmailAlert(subject: string, htmlContent: string) {
       subject: `[Affiliate Auto Alert] ${subject}`,
       html: htmlContent,
     });
-    
+
     console.log(`Successfully sent email alert: ${subject}`);
   } catch (error) {
-    console.error("Failed to send email alert:", error);
+    console.error('Failed to send email alert:', error);
     // Write log to DB
     await prisma.log.create({
       data: {
         level: 'ERROR',
         message: `Failed to send email alert: ${subject}`,
-        details: error instanceof Error ? error.stack : String(error)
-      }
+        details: error instanceof Error ? error.stack : String(error),
+      },
     });
   }
 }

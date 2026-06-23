@@ -43,7 +43,10 @@ export async function fetchDeals(status?: string, limit?: number): Promise<Deal[
   }
 }
 
-export async function updateDeal(id: string, updateData: Partial<Pick<Deal, 'status' | 'wishlinkUrl' | 'scheduledTime'>>): Promise<Deal> {
+export async function updateDeal(
+  id: string,
+  updateData: Partial<Pick<Deal, 'status' | 'wishlinkUrl' | 'scheduledTime'>>
+): Promise<Deal> {
   try {
     const res = await fetch(`${config.dashboardUrl}/api/worker/deals`, {
       method: 'PATCH',
@@ -59,7 +62,11 @@ export async function updateDeal(id: string, updateData: Partial<Pick<Deal, 'sta
   }
 }
 
-export async function logEvent(level: 'INFO' | 'WARN' | 'ERROR', message: string, details?: string) {
+export async function logEvent(
+  level: 'INFO' | 'WARN' | 'ERROR',
+  message: string,
+  details?: string
+) {
   try {
     const res = await fetch(`${config.dashboardUrl}/api/worker/logs`, {
       method: 'POST',

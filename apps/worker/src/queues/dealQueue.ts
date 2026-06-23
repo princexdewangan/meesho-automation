@@ -18,15 +18,15 @@ export const linkGenQueue = new Queue('link-generation', { connection: connectio
 export const whatsappPostQueue = new Queue('whatsapp-posting', { connection: connectionOptions });
 
 /**
- * Calculates the next available schedule time slot for posting, 
+ * Calculates the next available schedule time slot for posting,
  * ensuring a spacing of 3 hours between posts.
  */
 async function calculateNextPostSlot(): Promise<Date> {
   const now = new Date();
-  
+
   // Fetch deals to inspect scheduled/posted times
   const activeDeals = await fetchDeals();
-  
+
   // Filter for deals that are SCHEDULED or POSTED and have a scheduledTime
   const timedDeals = activeDeals
     .filter((d: Deal) => (d.status === 'SCHEDULED' || d.status === 'POSTED') && d.scheduledTime)
@@ -53,10 +53,10 @@ async function calculateNextPostSlot(): Promise<Date> {
 // 1. Worker for generating affiliate link (Playwright)
 const linkGenWorker = new Worker(
   'link-generation',
-  async (job) => {
+  async job => {
     const { dealId } = job.data;
     console.log(`[LinkGen Worker] Processing deal ID: ${dealId}`);
-    
+
     // Fetch deal
     const deals = await fetchDeals();
     const deal = deals.find(d => d.id === dealId);
@@ -68,10 +68,10 @@ const linkGenWorker = new Worker(
     try {
       // Run browser automation to convert URL
       const shortlink = await generateWishlink(deal.externalUrl);
-      
+
       // Calculate scheduling slot (spaced by 3 hours)
       const nextSlot = await calculateNextPostSlot();
-      
+
       // Update DB
       await updateDeal(dealId, {
         status: 'SCHEDULED',
@@ -99,7 +99,7 @@ const linkGenWorker = new Worker(
 // 2. Worker for posting to WhatsApp Web (whatsapp-web.js)
 const whatsappPostWorker = new Worker(
   'whatsapp-posting',
-  async (job) => {
+  async job => {
     const { dealId } = job.data;
     console.log(`[WhatsApp Worker] Posting deal ID: ${dealId}`);
 
@@ -109,10 +109,11 @@ const whatsappPostWorker = new Worker(
 
     try {
       // Build message format: [Product Name] + [MRP] + [Offer Price] + [Wishlink URL]
-      const message = `🛍️ *${deal.productName}*\n\n` +
-                      `❌ MRP: ~₹${deal.mrp}~\n` +
-                      `✅ *Offer Price: ₹${deal.offerPrice}*\n\n` +
-                      `👉 *Buy Here:* ${deal.wishlinkUrl}`;
+      const message =
+        `🛍️ *${deal.productName}*\n\n` +
+        `❌ MRP: ~₹${deal.mrp}~\n` +
+        `✅ *Offer Price: ₹${deal.offerPrice}*\n\n` +
+        `👉 *Buy Here:* ${deal.wishlinkUrl}`;
 
       // Send to WhatsApp group
       await sendWhatsAppMessage(config.whatsappCommunityName, message);
@@ -138,7 +139,7 @@ const whatsappPostWorker = new Worker(
  */
 export function startQueueSchedulers() {
   console.log('Starting polling schedulers...');
-  
+
   // Poll every 30 seconds
   setInterval(async () => {
     try {
@@ -151,7 +152,11 @@ export function startQueueSchedulers() {
         // Enqueue generation job if not already active in BullMQ
         const jobId = `gen-${deal.id}`;
         console.log(`Enqueuing link generation for: ${deal.productName}`);
-        await linkGenQueue.add('generate-link', { dealId: deal.id }, { jobId, removeOnComplete: true });
+        await linkGenQueue.add(
+          'generate-link',
+          { dealId: deal.id },
+          { jobId, removeOnComplete: true }
+        );
         // Set state temporarily to GENERATING to avoid double queuing in next poll
         await updateDeal(deal.id, { status: 'GENERATING' });
       }
@@ -165,11 +170,14 @@ export function startQueueSchedulers() {
       for (const deal of dueDeals) {
         const jobId = `post-${deal.id}`;
         console.log(`Enqueuing WhatsApp post for: ${deal.productName}`);
-        await whatsappPostQueue.add('post-whatsapp', { dealId: deal.id }, { jobId, removeOnComplete: true });
+        await whatsappPostQueue.add(
+          'post-whatsapp',
+          { dealId: deal.id },
+          { jobId, removeOnComplete: true }
+        );
         // Set state to POSTING to avoid double queue
         await updateDeal(deal.id, { status: 'POSTED' }); // Temporarily advance to prevent duplicate firing
       }
-
     } catch (err) {
       console.error('Queue scheduler polling error:', err);
     }
